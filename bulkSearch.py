@@ -19,8 +19,6 @@ import time
 
 #Parse command-line arguments and set default values if no argument is specified
 parser = argparse.ArgumentParser()
-#parser.add_argument("operation", help="type of operation: 'retrieve', 'update', 'patch', 'list' or 'activate'")
-#parser.add_argument("--config", help="name of the configuration")
 parser.add_argument("--behavior", "--behaviour", help="Specify the PM behavior to search for")
 parser.add_argument("--parameter", help="A particular parameter/value we're searching for")
 parser.add_argument("--json", help="JSON file containing  to use for bulksearch")
@@ -88,12 +86,10 @@ else:
 	print("no JSON specified... using hardcoded default search criteria")
 
 
-# FOR TESTING/DEBUGGING, DELETE LATER!!!
 if args.verbose:
 	print("search_json: ")
 	print(search_json, "\n")
-# sys.exit()
-# END TESTING/DEBUGGING CODE
+
 
 ############################################
 ####   PERFORMING BULK SEARCH API CALL   ###
@@ -119,8 +115,6 @@ except: 	#If the first API request fails print error message to check .edgerc fi
 	 print('Please ensure that you have valid API credentials listed in the .edgerc file in the [', section, '] section', sep='')
 	 print('A valid .edgerc file should be located here:', EDGERC_PATH)
 	 sys.exit() #escape program if credentials are not successfully imported
-
-#print(bulk_search_link)
 
 if API_response.status_code != 202:
 	print("ERROR with bulk search request")
@@ -169,11 +163,41 @@ while waiting_for_bulk_search_results:
 	time.sleep(5)
 
 
-# print results
+# define function to traversing json rule tree:
+def find_element_in_json(json, path):
+	next_path = path.split('/', 1)
+	if len(next_path) < 2:
+		return json[next_path[0]]
+	else:        
+		if next_path[0].isdigit():	# if this is a digit we need to cast it as an integer so it's not interpreted as a key
+			next_path[0] = int(next_path[0])
+		return find_element_in_json( json[next_path[0]], next_path[1])
+
+
+# parse rule trees to get details
 for result in search_results['results']:
 	print("Property name: ", result['propertyName'])
+	
+	# retrieve property JSON 
+	request_headers = {
+		'Content-Type': 'application/json',
+		'PAPI-Use-Prefixes': 'false'
+	}
+	if args.switchkey:
+		API_path = '/papi/v1/properties/{0}/versions/{1}/rules?accountSwitchKey={2}'.format(result['propertyId'], result['propertyVersion'], args.switchkey)
+	else:
+		API_path = '/papi/v1/properties/{0}/versions/{1}/rules'.format(result['propertyId'], result['propertyVersion'])
+	
+	papi_response = s.get(urljoin(baseurl, API_path), headers=request_headers)
+	rule_tree = json.loads(papi_response.text)
+	
+	# get value at location returned from bulksearch API
 	for location in result['matchLocations']:
-		print("  location:", location)
+		if args.verbose: print("  location:", location)
+		
+		search_result = find_element_in_json(rule_tree, location.strip('/'))
+		print("  value:", search_result)
+		
 	print("")
 
 
