@@ -1,6 +1,15 @@
-#This CLI will allow you to perform various operations with PAPI (Property Manager API)
+#This CLI will allow you to easily perform a bulk search of all PM configs for a certain behavior and value
 
 #Author: Andrew Loebach
+
+''' Example json for searches:
+
+	search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'customBehavior')].options[?(@.behaviorId == 'cbe_111166541')].behaviorId"	# searches for custom behavior with behaviorId 111166541
+	search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'customBehavior')].options.behaviorId"	# searches for any custom behavior and outputs behaviorID
+	search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'origin')].options.hostname"	# outputs all origin hostnames
+	search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == 'edgeWorker')].options.edgeWorkerId"	# search for any edgeworker and output Edgeworker IDs
+	#search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'sureRoute')].options.testObjectUrl"	# search for any SureRoute behavior and outputs the testObject URL
+'''
 
 ### IMPORTING PACKAGES AND SETTING CREDENTIALS ###
 import json
@@ -20,10 +29,10 @@ import time
 #Parse command-line arguments and set default values if no argument is specified
 parser = argparse.ArgumentParser()
 parser.add_argument("--behavior", "--behaviour", help="Specify the PM behavior to search for")
-parser.add_argument("--parameter", help="A particular parameter/value we're searching for")
-parser.add_argument("--json", help="JSON file containing  to use for bulksearch")
-parser.add_argument("-v", "--verbose", action="store_true", help="enable verbose output")
+parser.add_argument("--parameter", help="Specify a particular parameter/value we're searching for in the behavior")
+parser.add_argument("--json", help="path/name of JSON file containing bulksearch parameters")
 parser.add_argument("--switchkey", "--account-key", "--accountkey", help="Account switch key")
+parser.add_argument("-v", "--verbose", action="store_true", help="enable verbose output")
 parser.add_argument("--section", help="Section for .edgerc file", default="default")
 
 
@@ -33,6 +42,7 @@ if args.behavior:
 	print("searching for", args.behavior, "...")
 elif args.json:
 	print("loading search criteria from ", args.json)
+
 
 #################################################
 ### Reading API credentials from .edgerc file ###
@@ -53,12 +63,7 @@ s.auth = EdgeGridAuth.from_edgerc(edgerc, section)
 search_json = {
 	"bulkSearchQuery": {
 		"syntax": "JSONPATH",
-		#"match": "$..behaviors[?(@.name == 'customBehavior')].options[?(@.behaviorId == 'cbe_111166541')].behaviorId" # searching for a specific custom behavior
-		"match": "$..behaviors[?(@.name == 'origin')].options.hostname" # searching for any origin behaviors
-		#"match": "$..behaviors[?(@.name == 'edgeWorker')].options[?(@.edgeWorkerId == '66928')].edgeWorkerId"
-		#"match": "$..behaviors[?(@.name == 'customBehavior')].options.behaviorId"
-		#"match": "$..behaviors[?(@.name == 'customBehavior')].behaviorId"
-		#"match": "$..behaviors[?(@.name == 'customBehavior')].behaviorId"
+		"match": "$..behaviors[?(@.name == 'BEHAVIOR')].options.PARAMETER" # searching for any origin behaviors
 	}
 }
 
@@ -69,21 +74,21 @@ if args.json: #If json file is specified, extract search JSON from file
 		print('ERROR: file cannot be read (', args.json , ')')
 		sys.exit()
 	search_json = json.loads( f.read() )
-elif args.behavior:
-	# WORK IN PROGRESS CODE BELOW:
+	
+elif args.behavior: # if behavior is specified in search we search for this behavior directly
 	if args.parameter:
-		#TO-DO: split up value by key value pairs
-		search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == {0})].options[?(@.behaviorId == 'cbe_111166541')].behaviorId".format(args.behavior, args.value)
+		#TO-DO: split up value by key value pairs?
+		search_match = "$..behaviors[?(@.name == 'BEHAVIOR')].options.PARAMETER".replace("BEHAVIOR",args.behavior).replace("PARAMETER",args.parameter)
+		search_json['bulkSearchQuery']['match']	= search_match
 	else:
-		#search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == {0})].options[?(@.behaviorId == 'cbe_111166541')].behaviorId".format(args.behavior, args.value)
-		search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == {0})].options.behaviorId".format(args.behavior)
+		search_match = "$..behaviors[?(@.name == 'BEHAVIOR')]".replace("BEHAVIOR",args.behavior)
+		search_json['bulkSearchQuery']['match']	= search_match
+
 else:
-	# if no JSON file is specified then we create one
-	#search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == 'customBehavior')].options[?(@.behaviorId == 'cbe_111166541')].behaviorId"
-	#search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == 'origin')].options.hostname"
-	search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == 'edgeWorker')].options.edgeWorkerId"
-	#search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == 'sureRoute')].options.testObjectUrl"
-	print("no JSON specified... using hardcoded default search criteria")
+	# if no JSON file or behavior is specified
+	print("no json file or behavior specified. One of these is required as search criteria.")
+	print("specify a behavior to search for with --behaivior, or use a search file as JSON which you can input with --json.\n")
+	sys.exit()
 
 
 if args.verbose:
@@ -149,9 +154,6 @@ while waiting_for_bulk_search_results:
 	if API_response.status_code == 200:
 		search_results = json.loads(API_response.text)
 		if search_results['searchTargetStatus'] == "COMPLETE":
-			print("\nResults retrieved\n")
-			if args.verbose:
-				print( json.dumps(search_results, indent=4) )
 			break
 	else:
 		print("ERROR: invalid response to bulk search results")
@@ -166,11 +168,11 @@ while waiting_for_bulk_search_results:
 # define function to traversing json rule tree:
 def find_element_in_json(json, path):
 	next_path = path.split('/', 1)
+	if next_path[0].isdigit():	# if this is a digit we need to cast it as an integer so it's not interpreted as a key
+		next_path[0] = int(next_path[0])
 	if len(next_path) < 2:
 		return json[next_path[0]]
-	else:        
-		if next_path[0].isdigit():	# if this is a digit we need to cast it as an integer so it's not interpreted as a key
-			next_path[0] = int(next_path[0])
+	else:
 		return find_element_in_json( json[next_path[0]], next_path[1])
 
 
@@ -196,7 +198,10 @@ for result in search_results['results']:
 		if args.verbose: print("  location:", location)
 		
 		search_result = find_element_in_json(rule_tree, location.strip('/'))
-		print("  value:", search_result)
+		if args.parameter:
+			print("  ", args.parameter, ": ",  search_result)
+		else:
+			print("  value:", search_result)
 		
 	print("")
 
