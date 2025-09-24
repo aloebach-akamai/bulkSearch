@@ -1,14 +1,24 @@
 #This CLI will allow you to easily perform a bulk search of all PM configs for a certain behavior and value
+# The search can either be specified via input parameters --behavior, [--parameter], [--value], or alternatively via a JSON file
 
 #Author: Andrew Loebach
 
-''' Example json for searches:
+''' Examples
 
-	search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'customBehavior')].options[?(@.behaviorId == 'cbe_111166541')].behaviorId"	# searches for custom behavior with behaviorId 111166541
-	search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'customBehavior')].options.behaviorId"	# searches for any custom behavior and outputs behaviorID
-	search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'origin')].options.hostname"	# outputs all origin hostnames
-	search_json['bulkSearchQuery']['match']	= "$..behaviors[?(@.name == 'edgeWorker')].options.edgeWorkerId"	# search for any edgeworker and output Edgeworker IDs
-	#search_json['bulkSearchQuery']['match'] = "$..behaviors[?(@.name == 'sureRoute')].options.testObjectUrl"	# search for any SureRoute behavior and outputs the testObject URL
+Example search JSON:
+{
+	"bulkSearchQuery": {
+		"syntax": "JSONPATH",
+		"match": "$..behaviors[?(@.name == 'origin')].options.hostname"
+	}
+}
+
+Example 'match' syntaxes for JSON search files:
+	"$..behaviors[?(@.name == 'customBehavior')].options[?(@.behaviorId == 'cbe_111166541')].behaviorId"	# searches for custom behavior with behaviorId 111166541
+	"$..behaviors[?(@.name == 'customBehavior')].options.behaviorId"	# searches for any custom behavior and outputs behaviorID
+	"$..behaviors[?(@.name == 'origin')].options.hostname"	# outputs all origin hostnames
+	"$..behaviors[?(@.name == 'edgeWorker')].options.edgeWorkerId"	# search for any edgeworker and output Edgeworker IDs
+	"$..behaviors[?(@.name == 'sureRoute')].options.testObjectUrl"	# search for any SureRoute behavior and outputs the testObject URL
 '''
 
 ### IMPORTING PACKAGES AND SETTING CREDENTIALS ###
@@ -30,12 +40,12 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument("--behavior", "--behaviour", help="Specify the PM behavior to search for")
 parser.add_argument("--parameter", help="Specify a particular parameter/value we're searching for in the behavior")
+parser.add_argument("--value", help="Specify a value to match on if you want to search for results where a parameter matches a specific value.")
 parser.add_argument("--output", "--out", help="Specify the name of a file to output the results (in csv format")
 parser.add_argument("--json", help="path/name of JSON file containing bulksearch parameters")
 parser.add_argument("--switchkey", "--account-key", "--accountkey", help="Account switch key")
 parser.add_argument("-v", "--verbose", action="store_true", help="enable verbose output")
 parser.add_argument("--section", help="Section for .edgerc file", default="default")
-
 
 args = parser.parse_args()
 
@@ -95,9 +105,10 @@ if args.json: #If json file is specified, extract search JSON from file
 	
 elif args.behavior: # if behavior is specified in search we search for this behavior directly
 	if args.parameter:
-		#TO-DO: split up value by key value pairs?
 		search_match = "$..behaviors[?(@.name == 'BEHAVIOR')].options.PARAMETER".replace("BEHAVIOR",args.behavior).replace("PARAMETER",args.parameter)
-		search_json['bulkSearchQuery']['match']	= search_match
+		if args.value: 
+			search_match = "$..behaviors[?(@.name == 'BEHAVIOR')].options[?(@.PARAMETER == 'VALUE')].PARAMETER".replace("BEHAVIOR",args.behavior).replace("PARAMETER",args.parameter).replace("VALUE",args.value)
+		search_json['bulkSearchQuery']['match']	= search_match		
 	else:
 		search_match = "$..behaviors[?(@.name == 'BEHAVIOR')]".replace("BEHAVIOR",args.behavior)
 		search_json['bulkSearchQuery']['match']	= search_match
@@ -105,7 +116,7 @@ elif args.behavior: # if behavior is specified in search we search for this beha
 else:
 	# if no JSON file or behavior is specified
 	print("no json file or behavior specified. One of these is required as search criteria.")
-	print("specify a behavior to search for with --behaivior, or use a search file as JSON which you can input with --json.\n")
+	print("specify a behavior to search for with --behavior, or use a search file as JSON which you can input with --json.\n")
 	sys.exit()
 
 
