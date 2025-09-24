@@ -3,9 +3,12 @@
 
 #Author: Andrew Loebach
 
-''' Examples
+''' Examples:
 
-Example search JSON:
+Example search using CLI arguments:
+% python bulkSearch.py --switchkey 1-4J9EG --behavior 'edgeWorker' --parameter 'edgeWorkerId'
+
+Example search JSON if specifying search via json file:
 {
 	"bulkSearchQuery": {
 		"syntax": "JSONPATH",
@@ -50,7 +53,7 @@ parser.add_argument("--section", help="Section for .edgerc file", default="defau
 args = parser.parse_args()
 
 if args.behavior:
-	print("searching for", args.behavior, "...")
+	print("searching for", args.behavior, " behavior...")
 elif args.json:
 	print("loading search criteria from ", args.json)
 
@@ -181,6 +184,7 @@ while waiting_for_bulk_search_results:
 	if API_response.status_code == 200:
 		search_results = json.loads(API_response.text)
 		if search_results['searchTargetStatus'] == "COMPLETE":
+			print("search results retrieved.\n") # print newline here 
 			break
 	else:
 		print("ERROR: invalid response to bulk search results")
@@ -239,5 +243,5 @@ for result in search_results['results']:
 
 ######################################
 
-print("<Script finished>")
+print("<script completed>\n")
 sys.exit()
