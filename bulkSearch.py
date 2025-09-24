@@ -30,6 +30,7 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument("--behavior", "--behaviour", help="Specify the PM behavior to search for")
 parser.add_argument("--parameter", help="Specify a particular parameter/value we're searching for in the behavior")
+parser.add_argument("--output", "--out", help="Specify the name of a file to output the results (in csv format")
 parser.add_argument("--json", help="path/name of JSON file containing bulksearch parameters")
 parser.add_argument("--switchkey", "--account-key", "--accountkey", help="Account switch key")
 parser.add_argument("-v", "--verbose", action="store_true", help="enable verbose output")
@@ -57,6 +58,23 @@ s = requests.Session()
 s.auth = EdgeGridAuth.from_edgerc(edgerc, section)
 #################################################
 
+
+
+##############################################
+###	  CREATE FILE TO OUTPUT TEST RESULTS   ### 
+##############################################
+if args.output:
+	if args.output.endswith(".csv"):
+		OUTPUT_FILE =  args.output
+	else:
+		OUTPUT_FILE =  args.output + ".csv"
+	test_results = open(OUTPUT_FILE, 'w+') 
+	if args.parameter:
+		test_results.write('CONFIG_NAME,' + args.parameter)
+	else:
+		test_results.write('CONFIG_NAME,DETAIL')
+	test_results.write(str('\n')) #new line
+##############################################
 
 
 ### Setting up search parameter JSON
@@ -108,8 +126,6 @@ request_headers = {
 	"accept": "application/json",
 	"content-type": "application/json"
 }
-
-print('Calling bulk search API...')
 
 try:
 	 #API Call to retrieve version info
@@ -202,6 +218,10 @@ for result in search_results['results']:
 			print("  ", args.parameter, ": ",  search_result)
 		else:
 			print("  value:", search_result)
+			
+		if args.output:
+			test_results.write(result['propertyName'] + "," + search_result)
+			test_results.write(str('\n')) #new line
 		
 	print("")
 
