@@ -8,7 +8,7 @@ A Python script which can be used to search through Akamai Property Manager conf
 You will need the following to use the bulkSearch script:
 * Valid [EdgeGrid authentication credentials](https://techdocs.akamai.com/developer/docs/edgegrid) for an API client which has read access to [Property Manager API](https://techdocs.akamai.com/property-mgr/reference/api) 
 * Python 3 installed on your machine
-* A few python libraries which can installed installed with the command below:
+* A few python libraries which can be installed with the command below:
 ```bash
 pip3 install -r requirements.txt
 ```
@@ -115,7 +115,7 @@ We will store the JSONPath formatted match in the `match` field of the json sear
 {
 	"bulkSearchQuery": {
 		"syntax": "JSONPATH",
-		"match": "$..behaviors[?(@.name == 'customBehavior')].options.behaviorId
+		"match": "$..behaviors[?(@.name == 'customBehavior')].options.behaviorId"
 	}
 }
 ```
