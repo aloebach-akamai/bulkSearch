@@ -2,7 +2,7 @@
 # BulkSearch
 
 A Python script which can be used to search through Akamai Property Manager configurations for a specific behavior or value using Akamai's [bulksearch API](https://techdocs.akamai.com/property-mgr/reference/post-bulk-search)
-
+<br/>
 
 ## Dependencies
 You will need the following to use the bulkSearch script:
@@ -13,42 +13,74 @@ You will need the following to use the bulkSearch script:
 pip3 install -r requirements.txt
 ```
 
-
 ## Usage
-### Search for a behavior
-The following command will search all configurations for the "customBehavior" behavior and output the respective behaviorId
+### Simple Search 
+The following command will search all configurations for the "customBehavior" behavior:
 ```
-% python bulkSearch.py --behavior 'customBehavior' --parameter 'behaviorId' 
+% python bulkSearch.py --behavior edgeWorker 
 
-searching for customBehavior  behavior...
+searching for edgeWorker  behavior...
 waiting for bulk search results...
 waiting for bulk search results...
 waiting for bulk search results...
 search results retrieved.
 
-Property name:  qa.mariopipe1
-   behaviorId :  cbe_160310156
+Property name:  www.davidbartosh.com.xml
+  value: {'name': 'edgeWorker', 'options': {'enabled': True, 'createEdgeWorker': '', 'edgeWorkerId': '4219', 'resourceTier': '', 'mPulse': False, 'continueOnError': False}}
 
-Property name:  prod.ssundera-devops
-   behaviorId :  cbe_203343442
+Property name:  dummy_xiaozang_FOSSL_PM
+  value: {'name': 'edgeWorker', 'options': {'enabled': True, 'createEdgeWorker': '', 'edgeWorkerId': '3871', 'mPulse': False, 'continueOnError': False}}
 
-Property name:  mario_golden
-   behaviorId :  cbe_160310156
+Property name:  ktokarsk-test.kaki.pl
+  value: {'name': 'edgeWorker', 'options': {'enabled': True, 'createEdgeWorker': '', 'edgeWorkerId': '4251', 'mPulse': False, 'continueOnError': False}}
 
-Property name:  ssundera.terraform1.com
-   behaviorId :  cbe_203343442
+Property name:  fnami_ion_template
+  value: {'name': 'edgeWorker', 'options': {'enabled': True, 'createEdgeWorker': '', 'edgeWorkerId': '4351', 'mPulse': False, 'continueOnError': False}}
 
-Property name:  ssundera.terraform1.com
-   behaviorId :  cbe_203343442
+Property name:  sanandh-ion.edgesuite.net
+  value: {'name': 'edgeWorker', 'options': {'enabled': True, 'createEdgeWorker': '', 'edgeWorkerId': '37869', 'resourceTier': '', 'mPulse': False, 'continueOnError': False}}
+  
+<script completed>
+```
 
-Property name:  mario_golden_withvar
-   behaviorId :  cbe_160310156
+Note that this outputs all of the details of this behavior in PM's JSON format.
+<br/>
+<br/>
 
-Property name:  janetaylor
-   behaviorId :  cbe_151069165
+### Specifying a parameter to output
+Using the `--parameter` option, we can look for just the parameter we're interested in, such as the value of a CP Code, or the specific Edgeworker ID in the Edgeworker behavior.
+
+The following command will search all configurations for the "edgeWorker" behavior and output the respective edgeWorker ID:
+```
+ % python bulkSearch.py --behavior edgeWorker --parameter edgeWorkerId
+
+searching for edgeWorker  behavior...
+waiting for bulk search results...
+waiting for bulk search results...
+waiting for bulk search results...
+waiting for bulk search results...
+waiting for bulk search results...
+search results retrieved.
+
+Property name:  www.davidbartosh.com.xml
+   edgeWorkerId :  4219
+
+Property name:  dummy_xiaozang_FOSSL_PM
+   edgeWorkerId :  3871
+
+Property name:  ktokarsk-test.kaki.pl
+   edgeWorkerId :  4251
+
+Property name:  fnami_ion_template
+   edgeWorkerId :  4351
+
+Property name:  sanandh-ion.edgesuite.net
+   edgeWorkerId :  37869
 
 <script completed>
 ```
+<br/>
+<br/>
 
 
 ### Search for a specific value
@@ -100,6 +132,8 @@ Property name:  serverless.drewstestsite.com
 
 <script completed>
 ```
+<br/>
+<br/>
 
 
 ### JSON search file
@@ -132,7 +166,8 @@ Here are some examples of `match` criteria that you can configure in the search 
 * `"$..behaviors[?(@.name == 'edgeWorker')].options.edgeWorkerId"`	-> search for any Edgeworker and outputs Edgeworker IDs
 * `"$..behaviors[?(@.name == 'sureRoute')].options.testObjectUrl"`	-> search for any SureRoute behavior and outputs the testObject URL
 * `"$..behaviors[?(@.name == 'cpCode')].options.value.id"`	-> search for all CP code behaviors and output the CP Code IDs
-
+<br/>
+<br/>
 
 
 ### Saving results to a .csv file 
@@ -143,7 +178,7 @@ Example:
 ```
  python bulkSearch.py --behavior 'customBehavior' --parameter 'behaviorId' --out 'custom_behaviors.csv'
 ```
-
+<br/>
 
 
 ## Clone this repository from git
