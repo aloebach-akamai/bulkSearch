@@ -1,0 +1,4 @@
+argparse
+requests
+edgegrid-python
+urllib3

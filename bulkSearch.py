@@ -1,37 +1,18 @@
-#This CLI will allow you to easily perform a bulk search of all PM configs for a certain behavior and value
-# The search can either be specified via input parameters --behavior, [--parameter], [--value], or alternatively via a JSON file
+# This CLI will allow you to easily perform a bulk search of all PM configs for a certain behavior and value
+# The search can either be specified via input parameters --behavior, [--parameter], [--value], or alternatively a custom search JSON file
+
+# https://github.com/aloebach-akamai/bulkSearch
 
 #Author: Andrew Loebach
 
-''' Examples:
 
-Example search using CLI arguments:
-% python bulkSearch.py --switchkey 1-4J9EG --behavior 'edgeWorker' --parameter 'edgeWorkerId'
-
-Example search JSON if specifying search via json file:
-{
-	"bulkSearchQuery": {
-		"syntax": "JSONPATH",
-		"match": "$..behaviors[?(@.name == 'origin')].options.hostname"
-	}
-}
-
-Example 'match' syntaxes for JSON search files:
-	"$..behaviors[?(@.name == 'customBehavior')].options[?(@.behaviorId == 'cbe_111166541')].behaviorId"	# searches for custom behavior with behaviorId 111166541
-	"$..behaviors[?(@.name == 'customBehavior')].options.behaviorId"	# searches for any custom behavior and outputs behaviorID
-	"$..behaviors[?(@.name == 'origin')].options.hostname"	# outputs all origin hostnames
-	"$..behaviors[?(@.name == 'edgeWorker')].options.edgeWorkerId"	# search for any edgeworker and output Edgeworker IDs
-	"$..behaviors[?(@.name == 'sureRoute')].options.testObjectUrl"	# search for any SureRoute behavior and outputs the testObject URL
-'''
-
-### IMPORTING PACKAGES AND SETTING CREDENTIALS ###
-import json
+###   Importing packages   ### 
 import sys
-if sys.version_info[0] >= 3:
-	from urllib.parse import urljoin
-else:
+if sys.version_info[0] < 3:
 	print("WARNING: Python 3 is required for running this script. Please check your python version\n")
-	from urlparse import urljoin
+	sys.exit()
+import json
+from urllib.parse import urljoin
 from os.path import expanduser #added for importing credentials from .edgerc
 from akamai.edgegrid import EdgeGridAuth, EdgeRc
 import requests
@@ -42,20 +23,15 @@ import time
 #Parse command-line arguments and set default values if no argument is specified
 parser = argparse.ArgumentParser()
 parser.add_argument("--behavior", "--behaviour", help="Specify the PM behavior to search for")
-parser.add_argument("--parameter", help="Specify a particular parameter/value we're searching for in the behavior")
-parser.add_argument("--value", help="Specify a value to match on if you want to search for results where a parameter matches a specific value.")
+parser.add_argument("--parameter", help="Specify a particular parameter we're searching for in the behavior's options")
+parser.add_argument("--value", help="Specify a value to match on if you want to filter your search to matches where a parameter matches a specific value.")
 parser.add_argument("--output", "--out", help="Specify the name of a file to output the results (in csv format")
-parser.add_argument("--json", help="path/name of JSON file containing bulksearch parameters")
+parser.add_argument("--json", help="specify a json file containing a JSONPath expression to use as search criteria")
 parser.add_argument("--switchkey", "--account-key", "--accountkey", help="Account switch key")
 parser.add_argument("-v", "--verbose", action="store_true", help="enable verbose output")
 parser.add_argument("--section", help="Section for .edgerc file", default="default")
-
 args = parser.parse_args()
 
-if args.behavior:
-	print("searching for", args.behavior, " behavior...")
-elif args.json:
-	print("loading search criteria from ", args.json)
 
 
 #################################################
@@ -69,7 +45,6 @@ baseurl = 'https://%s' % edgerc.get(section, 'host')
 
 s = requests.Session()
 s.auth = EdgeGridAuth.from_edgerc(edgerc, section)
-#################################################
 
 
 
@@ -90,15 +65,19 @@ if args.output:
 ##############################################
 
 
-### Setting up search parameter JSON
+
+##########################################################
+###   Setting up template JSON for search parameters   ###
+##########################################################
 search_json = {
 	"bulkSearchQuery": {
 		"syntax": "JSONPATH",
-		"match": "$..behaviors[?(@.name == 'BEHAVIOR')].options.PARAMETER" # searching for any origin behaviors
+		"match": "$..behaviors[?(@.name == 'BEHAVIOR')].options.PARAMETER"
 	}
 }
 
 if args.json: #If json file is specified, extract search JSON from file
+	print("\nloading search criteria from ", args.json)
 	try:
 		f = open(args.json, "r")
 	except:
@@ -107,6 +86,7 @@ if args.json: #If json file is specified, extract search JSON from file
 	search_json = json.loads( f.read() )
 	
 elif args.behavior: # if behavior is specified in search we search for this behavior directly
+	print("\nsearching for", args.behavior, " behavior...")
 	if args.parameter:
 		search_match = "$..behaviors[?(@.name == 'BEHAVIOR')].options.PARAMETER".replace("BEHAVIOR",args.behavior).replace("PARAMETER",args.parameter)
 		if args.value: 
@@ -115,17 +95,22 @@ elif args.behavior: # if behavior is specified in search we search for this beha
 	else:
 		search_match = "$..behaviors[?(@.name == 'BEHAVIOR')]".replace("BEHAVIOR",args.behavior)
 		search_json['bulkSearchQuery']['match']	= search_match
+		if args.value: 
+			print("ERROR: When specifying --value, you must specify a --parameter to search for this value\n")
+			sys.exit()
 
 else:
 	# if no JSON file or behavior is specified
-	print("no json file or behavior specified. One of these is required as search criteria.")
+	print("\nno json file or behavior specified. One of these is required as search criteria.")
 	print("specify a behavior to search for with --behavior, or use a search file as JSON which you can input with --json.\n")
+	print("\nUSAGE:	python bulkSearch.py --behavior <behavior name> [--parameter <name of parameter>] [--value <value of parameter>]\n")
 	sys.exit()
 
 
 if args.verbose:
 	print("search_json: ")
 	print(search_json, "\n")
+
 
 
 ############################################
@@ -161,9 +146,10 @@ elif args.verbose:
 	print(API_response.text)
 
 
-#####################################################
-####   GETTING BULK SEARCH RESULTS VIA API CALL   ###
-#####################################################
+
+########################################################
+####   RETRIEVING BULK SEARCH RESULTS VIA API CALL   ###
+########################################################
 try:
 	API_path = bulk_search_link # API_response.text['bulkSearchLink']
 except:
@@ -196,6 +182,10 @@ while waiting_for_bulk_search_results:
 	time.sleep(5)
 
 
+
+##################################################################
+####   GET VALUES FROM PROPERTY BASED ON BULK SEARCH RESULTS   ###
+##################################################################
 # define function to traversing json rule tree:
 def find_element_in_json(json, path):
 	next_path = path.split('/', 1)
@@ -206,10 +196,15 @@ def find_element_in_json(json, path):
 	else:
 		return find_element_in_json( json[next_path[0]], next_path[1])
 
-
 # parse rule trees to get details
 for result in search_results['results']:
-	print("Property name: ", result['propertyName'])
+	if 'propertyName' in result:
+		print("Property name: ", result['propertyName'])
+	else:
+		# TO-DO: Add support for PM Includes
+		print("ERROR: Property name not found in result")
+		print(result)
+		continue
 	
 	# retrieve property JSON 
 	request_headers = {
@@ -235,13 +230,11 @@ for result in search_results['results']:
 			print("  value:", search_result)
 			
 		if args.output:
-			test_results.write(result['propertyName'] + "," + search_result)
+			test_results.write( result['propertyName'] + "," + str(search_result) )
 			test_results.write(str('\n')) #new line
 		
 	print("")
-
-
 ######################################
 
+
 print("<script completed>\n")
-sys.exit()
