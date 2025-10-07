@@ -15,7 +15,7 @@ pip3 install -r requirements.txt
 
 ## Usage
 ### Simple Search 
-The following command will search all configurations for the "customBehavior" behavior:
+The following command will search all configurations for the "edgeWorker" behavior:
 ```
 % python bulkSearch.py --behavior edgeWorker 
 
